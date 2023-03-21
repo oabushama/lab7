@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+    backend:
+        image: mobylab/backend:ia1
+        ports:
+            - 5555:80
+        environment:
+            PGUSER: admin
+            PGPASSWORD: admin
+            PGHOST: laborator2-db
+            PGDATABASE: books
+            PGPORT: 5432
+        networks:
+            - db-network
+        depends_on:
+            - db
+        deploy:
+            replicas: 3
+            placement:
+                max_replicas_per_node: 2
+            update_config:
+                parallelism: 2
+                order: start-first
+            rollback_config:
+                parallelism: 2
+                order: stop-first
+
+    db:
+        image: postgres
+        environment:
+            POSTGRES_DB: books
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: admin
+        volumes:
+            - "${PWD}/Database/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql"
+            - db-volume:/var/lib/postgresql/data
+        networks:
+            - db-network
+            - db-admin
+        deploy:
+            placement:
+                constraints:
+                    - "node.role==manager"
+
+    adminer:
+        image: adminer
+        ports:
+            - 8080:8080
+        networks:
+            - db-admin
+        depends_on:
+            - db
+
+    visualizer:
+        image: dockersamples/visualizer
+        ports:
+            - 8081:8080
+        volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+        deploy:
+            placement:
+                constraints:
+                    - "node.role==manager"
+
+volumes:
+    db-volume:
+
+networks:
+    db-network:
+    db-admin:
